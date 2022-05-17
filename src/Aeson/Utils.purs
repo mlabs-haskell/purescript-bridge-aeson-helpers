@@ -1,4 +1,4 @@
-module Data.Argonaut.Aeson where
+module Aeson.Utils where
 
 import Prelude
 

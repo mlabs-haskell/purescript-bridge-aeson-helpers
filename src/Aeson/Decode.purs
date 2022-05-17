@@ -1,4 +1,4 @@
-module Data.Argonaut.Decode.Aeson
+module Aeson.Decode
   ( class RowListDecoder
   , class ToTupleDecoder
   , Decoder
@@ -27,13 +27,13 @@ module Data.Argonaut.Decode.Aeson
 
 import Prelude hiding (unit)
 
+import Aeson (class DecodeAeson, Aeson, caseAesonObject, decodeAeson, fromString, toStringifiedNumbersJson, (.:))
 import Control.Alt ((<|>))
 import Control.Monad.RWS (RWSResult(..), RWST(..), evalRWST)
 import Control.Monad.Reader (ReaderT(..), runReaderT)
-import Data.Argonaut.Aeson (contentsProp, leftProp, maybeToEither, rightProp, tagProp, unconsRecord)
-import Data.Argonaut.Core (Json, caseJsonObject, fromString)
-import Data.Argonaut.Decode (class DecodeJson, JsonDecodeError(..), decodeJson, (.:))
-import Data.Argonaut.Decode.Decoders (decodeArray, decodeJArray, decodeJObject, decodeNull, decodeString)
+import Aeson.Utils (contentsProp, leftProp, maybeToEither, rightProp, tagProp, unconsRecord)
+import Data.Argonaut.Decode (JsonDecodeError(..))
+import Aeson.Decode.Decoders (decodeArray, decodeJArray, decodeJObject, decodeNull, decodeString)
 import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (find, index)
 import Data.Bifunctor (lmap)
@@ -55,15 +55,15 @@ import Prim.RowList (class RowToList, Cons, Nil)
 import Record as Rec
 import Type.Prelude (Proxy(..))
 
-type Decoder = ReaderT Json (Either JsonDecodeError)
-type JPropDecoder = ReaderT (Object Json) (Either JsonDecodeError)
-type TupleDecoder = RWST (Array Json) Unit Int (Either JsonDecodeError)
+type Decoder = ReaderT Aeson (Either JsonDecodeError)
+type JPropDecoder = ReaderT (Object Aeson) (Either JsonDecodeError)
+type TupleDecoder = RWST (Array Aeson) Unit Int (Either JsonDecodeError)
 
 class ToTupleDecoder f where
   toTupleDecoder :: forall a. f a -> TupleDecoder a
 
 instance toTupleDecoderDecoder ::
-  ToTupleDecoder (ReaderT Json (Either JsonDecodeError)) where
+  ToTupleDecoder (ReaderT Aeson (Either JsonDecodeError)) where
   toTupleDecoder decoder =
     RWST \arr i ->
       RWSResult
@@ -76,7 +76,7 @@ instance toTupleDecoderDecoder ::
         <*> pure P.unit
 
 instance toTupleDecoderTupleDecoder ::
-  ToTupleDecoder (RWST (Array Json) Unit Int (Either JsonDecodeError)) where
+  ToTupleDecoder (RWST (Array Aeson) Unit Int (Either JsonDecodeError)) where
   toTupleDecoder = identity
 
 class RowListDecoder :: forall k. k -> Row Type -> Row Type -> Constraint
@@ -119,8 +119,8 @@ propDecoder p decoder =
         <=< maybeToEither MissingValue
           <<< Obj.lookup key
 
-value :: forall a. DecodeJson a => Decoder a
-value = ReaderT $ decodeJson
+value :: forall a. DecodeAeson a => Decoder a
+value = ReaderT $ decodeAeson
 
 maybe :: forall a. Decoder a -> Decoder (Maybe a)
 maybe decoder =
@@ -138,12 +138,12 @@ either decoderA decoderB = ReaderT $ decodeJObject >=>
 dictionary
   :: forall a b. Ord a => Decoder a -> Decoder b -> Decoder (Map a b)
 dictionary decoderA decoderB = ReaderT \a ->
-    map Map.fromFoldable $ caseJsonObject (readArray a) readObject a
+    map Map.fromFoldable $ caseAesonObject (readArray a) readObject a
   where
   readArray = decodeArray $ decode $ tuple $ decoderA </\> decoderB
   readObject = decodePairs <<< toUnfoldable
   decodePairs
-    :: Array (Tuple String Json) -> Either JsonDecodeError (Array (Tuple a b))
+    :: Array (Tuple String Aeson) -> Either JsonDecodeError (Array (Tuple a b))
   decodePairs = traverse decodePair
   decodePair t@(Tuple key _) =
     lmap (AtKey key)
@@ -152,7 +152,7 @@ dictionary decoderA decoderB = ReaderT \a ->
 enum :: forall a. Enum a => Bounded a => Show a => Decoder a
 enum = ReaderT \json -> do
   v <- decodeString json
-  maybeToEither (UnexpectedValue json)
+  maybeToEither (UnexpectedValue $ toStringifiedNumbersJson json)
     $ find ((v == _) <<< show)
     $ upFromIncluding bottom
 
@@ -217,12 +217,12 @@ tuple decoder = ReaderT $ map fst <<< flip (evalRWST decoder) 0 <=<
 infixr 6 tupleConjoin as </\>
 
 unit :: Decoder Unit
-unit = ReaderT \json -> P.unit <$ decodeArray
-  (Left <<< UnexpectedValue)
-  json
+unit = ReaderT \aeson -> P.unit <$ decodeArray
+  (Left <<< UnexpectedValue <<< toStringifiedNumbersJson)
+  aeson
 
 null :: Decoder Unit
 null = ReaderT decodeNull
 
-decode :: forall a. Decoder a -> Json -> Either JsonDecodeError a
+decode :: forall a. Decoder a -> Aeson -> Either JsonDecodeError a
 decode = runReaderT

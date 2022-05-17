@@ -3,10 +3,10 @@ module Test.Main where
 import Prelude
 
 import Control.Monad.Reader (runReaderT)
-import Data.Argonaut.Decode.Aeson (Decoder, (</$\>), (</*\>), (</\>))
-import Data.Argonaut.Decode.Aeson as D
-import Data.Argonaut.Encode.Aeson (Encoder, (>$<), (>/\<))
-import Data.Argonaut.Encode.Aeson as E
+import Aeson.Decode (Decoder, (</$\>), (</*\>), (</\>))
+import Aeson.Decode as D
+import Aeson.Encode (Encoder, (>$<), (>/\<))
+import Aeson.Encode as E
 import Data.Bounded.Generic (genericBottom, genericTop)
 import Data.Either (Either(..))
 import Data.Enum (class BoundedEnum, class Enum, Cardinality(..))
