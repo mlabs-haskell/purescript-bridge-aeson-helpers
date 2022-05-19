@@ -29,23 +29,23 @@ import Prelude hiding (unit)
 
 import Aeson (class DecodeAeson, Aeson, caseAesonObject, decodeAeson, fromString, toStringifiedNumbersJson, (.:))
 import Control.Alt ((<|>))
-import Control.Monad.RWS (RWSResult(..), RWST(..), evalRWST)
-import Control.Monad.Reader (ReaderT(..), runReaderT)
+import Control.Monad.RWS (RWSResult(RWSResult), RWST(RWST), evalRWST)
+import Control.Monad.Reader (ReaderT(ReaderT), runReaderT)
 import Aeson.Utils (contentsProp, leftProp, maybeToEither, rightProp, tagProp, unconsRecord)
-import Data.Argonaut.Decode (JsonDecodeError(..))
+import Data.Argonaut.Decode (JsonDecodeError(UnexpectedValue, Named, AtKey, MissingValue, AtIndex))
 import Aeson.Decode.Decoders (decodeArray, decodeJArray, decodeJObject, decodeNull, decodeString)
 import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (find, index)
 import Data.Bifunctor (lmap)
 import Data.Bitraversable (bitraverse)
-import Data.Either (Either(..))
+import Data.Either (Either(Left, Right))
 import Data.Enum (class Enum, upFromIncluding)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.Traversable (traverse)
-import Data.Tuple (Tuple(..), fst)
+import Data.Tuple (Tuple(Tuple), fst)
 import Data.Tuple.Nested (type (/\))
 import Foreign.Object (Object, toUnfoldable)
 import Foreign.Object as Obj
@@ -53,7 +53,7 @@ import Prelude (unit) as P
 import Prim.Row as R
 import Prim.RowList (class RowToList, Cons, Nil)
 import Record as Rec
-import Type.Prelude (Proxy(..))
+import Type.Prelude (Proxy(Proxy))
 
 type Decoder = ReaderT Aeson (Either JsonDecodeError)
 type JPropDecoder = ReaderT (Object Aeson) (Either JsonDecodeError)

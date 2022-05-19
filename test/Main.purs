@@ -8,14 +8,14 @@ import Aeson.Decode as D
 import Aeson.Encode (Encoder, (>$<), (>/\<))
 import Aeson.Encode as E
 import Data.Bounded.Generic (genericBottom, genericTop)
-import Data.Either (Either(..))
-import Data.Enum (class BoundedEnum, class Enum, Cardinality(..))
+import Data.Either (Either(Right))
+import Data.Enum (class BoundedEnum, class Enum, Cardinality(Cardinality))
 import Data.Enum.Generic (genericPred, genericSucc)
 import Data.Generic.Rep (class Generic)
 import Data.Map as Map
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, un)
-import Data.Op (Op(..))
+import Data.Op (Op(Op))
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple)
 import Data.Tuple.Nested ((/\))

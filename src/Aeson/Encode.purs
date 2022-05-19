@@ -29,22 +29,22 @@ import Data.Array as Array
 import Data.Bifunctor (bimap, lmap)
 import Data.Bitraversable (ltraverse)
 import Data.Divide (divided)
-import Data.Either (Either(..))
+import Data.Either (Either(Left, Right))
 import Data.Functor.Contravariant (cmap)
 import Data.Map (Map, toUnfoldable)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (over, unwrap)
-import Data.Op (Op(..))
-import Data.Semigroup.Last (Last(..))
+import Data.Op (Op(Op))
+import Data.Semigroup.Last (Last(Last))
 import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.Traversable (traverse)
-import Data.Tuple (Tuple(..))
+import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Foreign.Object (Object)
 import Foreign.Object as Obj
 import Prim.Row as R
 import Prim.RowList (class RowToList, Cons, Nil)
-import Type.Prelude (Proxy(..))
+import Type.Prelude (Proxy(Proxy))
 
 type Encoder = Op Aeson
 type JPropEncoder = Op (Object (Last Aeson))

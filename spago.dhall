@@ -1,4 +1,4 @@
-{ name = "purescript-bridge-json-helpers"
+{ name = "purescript-bridge-aeson-helpers"
 , dependencies =
   [ "aeson"
   , "aff"

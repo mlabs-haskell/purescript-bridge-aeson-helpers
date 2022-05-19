@@ -5,20 +5,20 @@ import Prelude
 
 import Aeson (Aeson, caseAesonBoolean, caseAesonNull, caseAesonNumber, caseAesonString, isNull, toArray, toObject, toString, toStringifiedNumbersJson)
 import Data.Argonaut.Core (fromString)
-import Data.Argonaut.Decode.Error (JsonDecodeError(..))
+import Data.Argonaut.Decode.Error (JsonDecodeError(TypeMismatch, Named, AtKey, MissingValue, UnexpectedValue, AtIndex))
 import Data.Array as Arr
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NEA
 import Data.Bifunctor (lmap)
-import Data.Either (Either(..), note)
-import Data.Identity (Identity(..))
+import Data.Either (Either(Left, Right), note)
+import Data.Identity (Identity(Identity))
 import Data.Int (fromNumber)
 import Data.List (List, fromFoldable)
 import Data.List as L
 import Data.List.NonEmpty (NonEmptyList)
 import Data.List.NonEmpty as NEL
 import Data.Map as M
-import Data.Maybe (maybe, Maybe(..))
+import Data.Maybe (maybe, Maybe(Just, Nothing))
 import Data.NonEmpty (NonEmpty, (:|))
 import Data.Number as Number
 import Data.Set as S
@@ -27,7 +27,7 @@ import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NonEmptyString
 import Data.Traversable (traverse)
 import Data.TraversableWithIndex (traverseWithIndex)
-import Data.Tuple (Tuple(..))
+import Data.Tuple (Tuple(Tuple))
 import Foreign.Object as FO
 
 decodeIdentity
