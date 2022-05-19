@@ -1,4 +1,4 @@
-module Data.Argonaut.Encode.Aeson
+module Aeson.Encode
   ( class RowListEncoder
   , class ToTupleEncoder
   , Encoder
@@ -23,34 +23,32 @@ module Data.Argonaut.Encode.Aeson
 
 import Prelude
 
-import Data.Argonaut.Aeson (contentsProp, leftProp, rightProp, tagProp, unconsRecord)
-import Data.Argonaut.Core (Json, caseJson, fromArray, fromObject, jsonEmptyArray, jsonEmptyObject, jsonNull)
-import Data.Argonaut.Encode (class EncodeJson, encodeJson, (:=), (~>))
-import Data.Argonaut.Encode.Encoders (encodeString)
+import Aeson (class EncodeAeson, Aeson, aesonNull, caseAeson, constAesonCases, encodeAeson, fromString)
+import Aeson.Utils (contentsProp, leftProp, rightProp, tagProp, unconsRecord)
 import Data.Array as Array
 import Data.Bifunctor (bimap, lmap)
 import Data.Bitraversable (ltraverse)
 import Data.Divide (divided)
-import Data.Either (Either(..))
+import Data.Either (Either(Left, Right))
 import Data.Functor.Contravariant (cmap)
 import Data.Map (Map, toUnfoldable)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (over, unwrap)
-import Data.Op (Op(..))
-import Data.Semigroup.Last (Last(..))
+import Data.Op (Op(Op))
+import Data.Semigroup.Last (Last(Last))
 import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.Traversable (traverse)
-import Data.Tuple (Tuple(..))
-import Data.Tuple.Nested (type (/\))
-import Foreign.Object (Object, fromFoldable)
+import Data.Tuple (Tuple(Tuple))
+import Data.Tuple.Nested (type (/\), (/\))
+import Foreign.Object (Object)
 import Foreign.Object as Obj
 import Prim.Row as R
 import Prim.RowList (class RowToList, Cons, Nil)
-import Type.Prelude (Proxy(..))
+import Type.Prelude (Proxy(Proxy))
 
-type Encoder = Op Json
-type JPropEncoder = Op (Object (Last Json))
-type TupleEncoder = Op (Array Json)
+type Encoder = Op Aeson
+type JPropEncoder = Op (Object (Last Aeson))
+type TupleEncoder = Op (Array Aeson)
 
 infixr 4 divided as >*<
 
@@ -59,10 +57,10 @@ infixr 4 cmap as >$<
 class ToTupleEncoder f where
   toTupleEncoder :: forall a. f a -> TupleEncoder a
 
-instance toTupleEncoderEncoder :: ToTupleEncoder (Op Json) where
+instance toTupleEncoderEncoder :: ToTupleEncoder (Op Aeson) where
   toTupleEncoder = mapEncoder Array.singleton
 
-instance toTupleEncoderTupleEncoder :: ToTupleEncoder (Op (Array Json)) where
+instance toTupleEncoderTupleEncoder :: ToTupleEncoder (Op (Array Aeson)) where
   toTupleEncoder = identity
 
 class RowListEncoder :: forall k. k -> Row Type -> Row Type -> Constraint
@@ -98,40 +96,33 @@ propEncoder
 propEncoder p encoder =
   Op $ Obj.singleton (reflectSymbol p) <<< Last <<< encode encoder
 
-value :: forall a. EncodeJson a => Encoder a
-value = Op $ encodeJson
+value :: forall a. EncodeAeson a => Encoder a
+value = Op $ encodeAeson
 
 maybe :: forall a. Encoder a -> Encoder (Maybe a)
 maybe encoder = Op case _ of
   Just a -> encode encoder a
-  Nothing -> jsonNull
+  Nothing -> aesonNull
 
 either :: forall a b. Encoder a -> Encoder b -> Encoder (Either a b)
 either encoderA encoderB = Op case _ of
-  Left a -> leftProp := encode encoderA a ~> jsonEmptyObject
-  Right b -> rightProp := encode encoderB b ~> jsonEmptyObject
+  Left a -> encodeAeson $ Obj.fromFoldable [ leftProp /\ encode encoderA a ]
+  Right b -> encodeAeson $ Obj.fromFoldable [ rightProp /\ encode encoderB b ]
 
 dictionary :: forall a b. Encoder a -> Encoder b -> Encoder (Map a b)
 dictionary encoderA encoderB = Op $ toPairs >>> encodePairs
   where
-  toPairs :: Map a b -> Array (Tuple Json Json)
+  toPairs :: Map a b -> Array (Tuple Aeson Aeson)
   toPairs = map (bimap (encode encoderA) (encode encoderB)) <<< toUnfoldable
-  encodePairs :: Array (Tuple Json Json) -> Json
+  encodePairs :: Array (Tuple Aeson Aeson) -> Aeson
   encodePairs pairs = case traverse (ltraverse tryString) pairs of
-    Nothing -> encodeJson pairs
-    Just pairs' -> fromObject $ fromFoldable pairs'
+    Nothing -> encodeAeson $ map (lmap encodeAeson) pairs
+    Just pairs' -> encodeAeson $ Obj.fromFoldable pairs'
   tryString =
-    caseJson
-      (const Nothing) 
-      (const Nothing) 
-      (const Nothing) 
-      (Just) 
-      (const Nothing) 
-      (const Nothing)
-
+    caseAeson (constAesonCases Nothing) { caseString = Just }
 
 enum :: forall a. Show a => Encoder a
-enum = Op $ encodeString <<< show
+enum = Op $ fromString <<< show
 
 record
   :: forall rl ro ri
@@ -140,7 +131,7 @@ record
   => Record ri
   -> Encoder (Record ro)
 record encoders =
-  mapEncoder (fromObject <<< map unwrap) $ rowListEncoder (Proxy :: _ rl)
+  mapEncoder (encodeAeson <<< map unwrap) $ rowListEncoder (Proxy :: _ rl)
     encoders
 
 tupleDivided
@@ -150,20 +141,22 @@ tupleDivided encoder = divided (toTupleEncoder encoder) <<< toTupleEncoder
 infixr 6 tupleDivided as >/\<
 
 tuple :: forall a. TupleEncoder a -> Encoder a
-tuple = over Op $ compose fromArray
+tuple = over Op $ compose encodeAeson
 
 unit :: Encoder Unit
-unit = Op $ const jsonEmptyArray
+unit = Op $ const $ encodeAeson ([] :: Array Int)
 
 null :: Encoder Unit
-null = Op $ const jsonNull
+null = Op $ const aesonNull
 
 encode :: forall a b. Op a b -> b -> a
 encode = unwrap
 
-encodeTagged :: forall a. String -> a -> Encoder a -> Json
-encodeTagged tag a encoder =
-  tagProp := tag ~> contentsProp := encode encoder a ~> jsonEmptyObject
+encodeTagged :: forall a. String -> a -> Encoder a -> Aeson
+encodeTagged tag a encoder = encodeAeson $ Obj.fromFoldable
+  [ tagProp /\ (encodeAeson tag)
+  , contentsProp /\ encode encoder a
+  ]
 
 mapEncoder :: forall a b c. (a -> b) -> Op a c -> Op b c
 mapEncoder = over Op <<< map
